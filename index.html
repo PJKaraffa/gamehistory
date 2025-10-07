@@ -64,11 +64,10 @@
 <script>
   // === SINGLE FILE FUNCTION YOU EDIT ===
   function getData(){
-    // Update these rows as weeks happen. Use "" for not decided, "DNP" for did not play.
     const weeks = [
       { week: "Week 1",  s2024_25: "DNP",     s2025_26: "Luis" },
       { week: "Week 2",  s2024_25: "DNP",     s2025_26: "Mike" },
-      { week: "Week 3",  s2024_25: "Dawn",    s2025_26: "Luís" }, // accent OK
+      { week: "Week 3",  s2024_25: "Dawn",    s2025_26: "Luis" }, // keep plain ASCII to be safest
       { week: "Week 4",  s2024_25: "Claudia", s2025_26: "Kevin" },
       { week: "Week 5",  s2024_25: "Reina",   s2025_26: "PJ" },
       { week: "Week 6",  s2024_25: "Mike",    s2025_26: "" },
@@ -85,11 +84,7 @@
       { week: "Week 17", s2024_25: "Reina",   s2025_26: "" },
       { week: "Week 18", s2024_25: "Reina",   s2025_26: "" },
     ];
-    // Auto-calc totals from weeks:
-    const autoFromWeeks = true;
-    // If you ever want manual totals, set autoFromWeeks=false and add:
-    // const wins = [{ name:"Luis", wins:4 }, ...];
-
+    const autoFromWeeks = true; // keep this true to fill Totals automatically
     return { weeks, autoFromWeeks };
   }
   // === END SINGLE FILE FUNCTION ===
@@ -100,12 +95,15 @@
     const winsTbody  = document.querySelector("#wins-table tbody");
 
     const isDNP = v => String(v).trim().toUpperCase() === "DNP";
-    const normalizeName = v =>
-      String(v||"").trim()
-        .normalize('NFD').replace(/[\u0300-\u036f]/g,''); // remove diacritics
+    // Safe cleaner (handles older browsers without String.prototype.normalize)
+    const cleanName = v => {
+      let s = String(v||"").trim();
+      try { if (s.normalize) s = s.normalize('NFD').replace(/[\u0300-\u036f]/g,''); } catch(e){}
+      return s;
+    };
 
     function cellContent(val){
-      if(!val) return "";
+      if(!val) return document.createTextNode("");
       if(isDNP(val)){
         const span = document.createElement("span");
         span.className = "tag";
@@ -132,9 +130,8 @@
       for (const r of weeks) {
         for (const key of ["s2024_25","s2025_26"]) {
           const raw = r[key];
-          if (!raw) continue;
-          if (isDNP(raw)) continue;
-          const name = normalizeName(raw);
+          if (!raw || isDNP(raw)) continue;
+          const name = cleanName(raw);
           if (!name) continue;
           counts[name] = (counts[name]||0) + 1;
         }
