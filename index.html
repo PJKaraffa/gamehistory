@@ -5,7 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Weekly Winners</title>
 <style>
-  :root{ --bg:#f6f7fb; --card:#fff; --text:#0f172a; --muted:#64748b; --line:#e5e7eb; --dnp:#e2e8f0; }
+  :root{
+    --bg:#f6f7fb; --card:#fff; --text:#0f172a; --muted:#64748b; --line:#e5e7eb; --dnp:#e2e8f0;
+    /* new shading vars */
+    --stripe1:#ffffff;
+    --stripe2:#f9fbff;
+    --hover:#eef4ff;
+    --current:#fff7ed;     /* soft highlight for latest completed week */
+    --current-bar:#fb923c; /* peach accent bar */
+  }
   *{box-sizing:border-box} html,body{margin:0;padding:0}
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.4}
   .container{max-width:900px;margin:40px auto;padding:0 16px}
@@ -15,10 +23,28 @@
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:18px;box-shadow:0 4px 12px rgba(15,23,42,.05)}
   .card h2{margin:0 0 12px;font-size:18px}
   .table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--line)}
-  table{width:100%;border-collapse:collapse;min-width:420px}
-  thead th{text-align:left;font-weight:600;background:#f8fafc;border-bottom:1px solid var(--line);padding:10px 12px}
+  table{width:100%;border-collapse:separate;border-spacing:0;min-width:420px}
+  thead th{
+    position:sticky; top:0; z-index:1;
+    text-align:left;font-weight:600;background:#f8fafc;border-bottom:1px solid var(--line);padding:10px 12px
+  }
   tbody td{padding:10px 12px;border-bottom:1px solid var(--line)}
-  tbody tr:nth-child(even){background:#fafafa}
+  /* professional zebra + hover */
+  tbody tr{transition:background .18s ease}
+  tbody tr:nth-child(odd){background:var(--stripe1)}
+  tbody tr:nth-child(even){background:var(--stripe2)}
+  tbody tr:hover{background:var(--hover)}
+  /* latest completed week highlight */
+  tbody tr.current{
+    background:var(--current) !important;
+  }
+  tbody tr.current td:first-child{
+    position:relative;
+  }
+  tbody tr.current td:first-child::before{
+    content:""; position:absolute; left:-12px; top:-1px; bottom:-1px; width:4px;
+    background:var(--current-bar); border-radius:4px;
+  }
   td .tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;background:var(--dnp);color:#334155;border:1px solid #cbd5e1}
   .footer{text-align:center;color:var(--muted);margin-top:14px}
   .hint{color:var(--muted);font-size:12px}
@@ -67,7 +93,7 @@
     const weeks = [
       { week: "Week 1",  s2024_25: "DNP",     s2025_26: "Luis" },
       { week: "Week 2",  s2024_25: "DNP",     s2025_26: "Mike" },
-      { week: "Week 3",  s2024_25: "Dawn",    s2025_26: "Luis" }, // keep plain ASCII to be safest
+      { week: "Week 3",  s2024_25: "Dawn",    s2025_26: "Luis" },
       { week: "Week 4",  s2024_25: "Claudia", s2025_26: "Kevin" },
       { week: "Week 5",  s2024_25: "Reina",   s2025_26: "PJ" },
       { week: "Week 6",  s2024_25: "Mike",    s2025_26: "" },
@@ -84,7 +110,7 @@
       { week: "Week 17", s2024_25: "Reina",   s2025_26: "" },
       { week: "Week 18", s2024_25: "Reina",   s2025_26: "" },
     ];
-    const autoFromWeeks = true; // keep this true to fill Totals automatically
+    const autoFromWeeks = true; // keep auto totals
     return { weeks, autoFromWeeks };
   }
   // === END SINGLE FILE FUNCTION ===
@@ -95,12 +121,7 @@
     const winsTbody  = document.querySelector("#wins-table tbody");
 
     const isDNP = v => String(v).trim().toUpperCase() === "DNP";
-    // Safe cleaner (handles older browsers without String.prototype.normalize)
-    const cleanName = v => {
-      let s = String(v||"").trim();
-      try { if (s.normalize) s = s.normalize('NFD').replace(/[\u0300-\u036f]/g,''); } catch(e){}
-      return s;
-    };
+    const clean = v => String(v||"").trim();
 
     function cellContent(val){
       if(!val) return document.createTextNode("");
@@ -113,15 +134,28 @@
       return document.createTextNode(val);
     }
 
-    // Build weeks table
-    weeks.forEach(row => {
+    // Build weeks rows and remember the last completed week index
+    let lastCompletedIdx = -1;
+    weeks.forEach((row, idx) => {
       const tr = document.createElement("tr");
       const tWeek = document.createElement("td"); tWeek.textContent = row.week;
       const tA = document.createElement("td");   tA.appendChild(cellContent(row.s2024_25));
       const tB = document.createElement("td");   tB.appendChild(cellContent(row.s2025_26));
+
+      // mark latest completed row (any non-empty, non-DNP in either season)
+      const aDone = clean(row.s2024_25) && !isDNP(row.s2024_25);
+      const bDone = clean(row.s2025_26) && !isDNP(row.s2025_26);
+      if (aDone || bDone) lastCompletedIdx = idx;
+
       tr.append(tWeek, tA, tB);
       weeksTbody.appendChild(tr);
     });
+
+    // Accent the latest completed week
+    if (lastCompletedIdx >= 0) {
+      const row = weeksTbody.querySelectorAll("tr")[lastCompletedIdx];
+      if (row) row.classList.add("current");
+    }
 
     // Totals
     let totals = manualWins || [];
@@ -129,11 +163,9 @@
       const counts = {};
       for (const r of weeks) {
         for (const key of ["s2024_25","s2025_26"]) {
-          const raw = r[key];
-          if (!raw || isDNP(raw)) continue;
-          const name = cleanName(raw);
-          if (!name) continue;
-          counts[name] = (counts[name]||0) + 1;
+          const v = clean(r[key]);
+          if (!v || isDNP(v)) continue;
+          counts[v] = (counts[v]||0) + 1;
         }
       }
       totals = Object.entries(counts).map(([name, wins])=>({name, wins}));
